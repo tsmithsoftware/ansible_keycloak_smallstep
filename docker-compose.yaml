@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+
+  ansible:
+    container_name: ansible
+    ports:
+      - "2222:22"
+    image: webdevops/ansible
+    volumes:
+    - ./ansible:/ansible
+    command: "tail -f /dev/null"
+    networks:
+      network:
+        ipv4_address: 10.5.0.5
+
+  random_container:
+    container_name: random_container
+#    volumes:
+#    - ./ssh_key:/root/.ssh
+    ports:
+      - "2223:22"
+    build: ./random/.
+    command: "tail -f /dev/null"
+    networks:
+      network:
+        ipv4_address: 10.5.0.4
+
+# 1 - this solution requires certificates to be set up correctly. 
+# https://smallstep.com/docs/tutorials/docker-tls-certificate-authority/#manual-installation
+# used as a CA to allow trust of keycloak certs
+# smallstep_ca will be run to generate the root CA fingerprint
+  smallstep_ca:
+    container_name: ca_holder
+    image: smallstep/step-ca
+    ports:
+      - "6783:6783"
+    stdin_open: true
+    tty: true
+    command: "tail -f /dev/null"
+    networks:
+      - network
+
+networks:
+  network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
