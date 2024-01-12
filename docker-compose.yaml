@@ -6,10 +6,10 @@ services:
     container_name: ansible
     ports:
       - "2222:22"
-    image: webdevops/ansible
+    image: flaconi/ansible
     volumes:
     - ./ansible:/ansible
-    command: "tail -f /dev/null"
+    command: bash -c "ansible-galaxy collection install community.docker && tail -f /dev/null"
     networks:
       network:
         ipv4_address: 10.5.0.5

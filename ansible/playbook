@@ -17,6 +17,98 @@
         src: ./files/provisioner_password_file
         dest: ~/provisioner_password_file
 
+    - name: exec command
+      community.docker.docker:
+        remote_addr: random_container
+        docker_extra_args: ls
+# - hosts: smallstep_ca
 #- name: Initialise Smallstep container
-#  shell:
-#	cmd: step ca init --deployment-type=standalone --name=Smallstep --dns=smallstep_ca --address=:6783 --provisioner=me@smallstep.com --password-file=/home/passwords/password_file --provisioner-password-file=/home/passwords/provisioner_password_file
+#  community.docker.docker: step ca init --deployment-type=standalone --name=Smallstep --dns=smallstep_ca --address=:6783 --provisioner=me@smallstep.com --password-file=/home/passwords/password_file --provisioner-password-file=/home/passwords/provisioner_password_file
+
+# - name: Get root certificate fingerprint for use by other containers
+#    community.docker.docker step certificate fingerprint /home/step/certs/root_ca.crt >/home/fingerprint
+
+# - name: Copy fingerprint and root CA cert to control node for use by other steps
+#    copy: /home/fingerprint ./fingerprint
+
+# - copy: /home/step/certs/root_ca.crt ./root_ca.cert
+
+# - name: initialisae step
+#     community.docker.docker: step-ca $(step path)/config/ca.json --password-file=/home/passwords/password_file
+
+# root CA is initialisaed, now we use the certificate_generator container to generate the leaf cert and key for keycloak
+#  - hosts: certificate_generator
+#      community.docker.docker: step ca bootstrap --force --ca-url https://smallstep_ca:6783 --fingerprint $(cat ./fingerprint) 2>&1 >/dev/null
+
+# - name: obtain cert for keycloak
+#     community.docker.docker: step ca certificate keycloak ./keycloak.key ./keycloak.crt  -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=keycloak --san=localhost
+
+# - name: check cert
+#     community.docker.docker: step certificate inspect ./keycloak.crt
+
+# - name: obtain cert for image registry
+#     community.docker.docker: step ca certificate registry ./registry.key ./registry.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provision-password-file=/tmp/provisioner_password_file --san=registry --san=localhost
+
+# - name: check cert
+#      community.docker.docker: step certificate inspect /.registry.crt
+
+# - name: obtain cert for aspnet
+#        community.docker.docker: step ca certificate ./aspnet_core.key ./aspnet_core.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provision-password-file=/tmp/provisioner_password_file --san=aspnet
+
+# Now we copy the certificates into the keycloak container, import them into the keystore and start KC
+# - hosts: keycloak
+
+#   name: copy files
+#      community.docker.docker: cp ./keycloak.crt /home/keycloak_certs/keycloak.crt
+#      community.docker.docker: cp ./aspnet.crt /home/aspnet_certs/aspnet_core_copy.crt
+#      community.docker.docker: sh: <
+#KC
+#echo "import KC cert, use pregenerated keystore"
+#certAlias="keycloak$((1 + $RANDOM % 100))"
+#echo "kc cert alias: $certAlias"
+#echo "yes" | keytool -importcert -noprompt \
+# -alias $certAlias \
+# -file /home/keycloak_certs/keycloak.crt \
+# -keystore /keycloak_keystore/keystore.jks \
+# -storepass password \
+# -keypass password \
+# -keyalg RSA
+
+#echo "import aspnet cert, use pregenerated keystore"
+#echo "generating random alias for certificate import"
+#certAlias="aspnet$((1 + $RANDOM % 100))"
+#echo "aspnet cert alias: $certAlias"
+#echo "yes" | keytool -importcert -noprompt \
+# -alias $certAlias \
+# -file /home/aspnet_certs/aspnet_core_copy.crt \
+# -keystore /keycloak_keystore/keystore.jks \
+# -storepass password \
+# -keypass hello \
+# -keyalg RSA
+
+# name: start KC
+#   community.docker.docker: 
+#/opt/keycloak/bin/kc.sh start --log-level=warn --hostname-url=https://keycloak.example --https-certificate-file=/home/keycloak_certs/keycloak.crt --https-certificate-key-file=/home/keycloak_certs/keycloak.key --https-protocols=TLSv1.3,TLSv1.2 --import-realm 
+
+# - hosts: aspnet
+#   name: copy files
+#      community.docker.docker: cp ./keycloak.crt /home/keycloak_certs/keycloak.crt
+#      community.docker.docker: cp ./aspnet.crt /home/aspnet_certs/aspnet_core_copy.crt
+#      community.docker.docker: sh: <
+
+#echo "convert into pfx"
+#openssl pkcs12 -export -out aspnet_core.pfx -inkey ./aspnet_core.key -in ./aspnet_core.crt -passin pass:hello -passout pass:hello
+
+#echo "move into locations"
+
+#mv aspnet_core.pfx /certs/aspnet_core.pfx
+
+#echo "installing KC certificates..."
+#cp /home/keycloak-certs/keycloak.crt /tmp/keycloak.crt
+
+#cat /tmp/keycloak.crt >> /etc/ssl/certs/ca-certificates.crt
+# run app
+#cd /app
+
+#echo "Running app..."
+#dotnet KeycloakAuth.dll
