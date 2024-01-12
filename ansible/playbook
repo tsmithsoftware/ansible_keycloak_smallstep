@@ -1,41 +1,59 @@
----
+#---
 - hosts: all
   tasks:
-    - name: Print message
-      debug:
-        msg: Hello Ansible World
 
-- hosts: random_container
-  tasks:
-    - name: copy password file
-      copy:
-        src: ./files/password_file
-        dest: ~/password_file
+# containers should be running but won't necessarily be in the inventory
+# so we add them here
 
-    - name: copy password file
-      copy:
-        src: ./files/provisioner_password_file
-        dest: ~/provisioner_password_file
+    - name: add smallstep CA container to inventory
+      add_host: 
+        name: ca_holder
+        ansible_connection: docker
+      changed_when: false
 
-    - name: exec command
-      community.docker.docker:
-        remote_addr: random_container
-        docker_extra_args: ls
-# - hosts: smallstep_ca
-#- name: Initialise Smallstep container
-#  community.docker.docker: step ca init --deployment-type=standalone --name=Smallstep --dns=smallstep_ca --address=:6783 --provisioner=me@smallstep.com --password-file=/home/passwords/password_file --provisioner-password-file=/home/passwords/provisioner_password_file
+    - name: add keycloak container to inventory
+      add_host:
+        name: keycloak
+        ansible_connection: docker
+      changed_when: false
 
-# - name: Get root certificate fingerprint for use by other containers
-#    community.docker.docker step certificate fingerprint /home/step/certs/root_ca.crt >/home/fingerprint
+    - name: add certificate_generator container to inventory, as KC image is locked down (cannot use step ca bootstrap)
+      add_host:
+        name: certificate_generator
+        ansible_connection: docker
+      changed_when: false
 
-# - name: Copy fingerprint and root CA cert to control node for use by other steps
-#    copy: /home/fingerprint ./fingerprint
+# CA container is initialised through docker-compose env vars
 
-# - copy: /home/step/certs/root_ca.crt ./root_ca.cert
+    - name: obtain root CA cert fingerprint
+      delegate_to: ca_holder
+      raw: bash -c "step certificate fingerprint /home/step/certs/root_ca.crt"
+      register: ca_fingerprint
 
-# - name: initialisae step
-#     community.docker.docker: step-ca $(step path)/config/ca.json --password-file=/home/passwords/password_file
+    - debug: msg="{{ ca_fingerprint.stdout }}"
 
+    - name: bootstrap certgen container with step-ca
+      delegate_to: certificate_generator
+      raw: step ca bootstrap --force --ca-url https://smallstep_ca:6783 --fingerprint {{ ca_fingerprint }} 2>&1 >/dev/null
+
+# TODO: having issues installing the community.docker collection, will return to later
+    - name: copy password file to certificate_generator for use in certgen
+      delegate_to: certificate_generator
+      raw: echo password > /tmp/password_file
+
+# TODO: having issues installing the community.docker collection, will return to later
+    - name: copy provisioner_password file to certificate_generator for use in certgen
+      delegate_to: certificate_generator
+      raw: echo password > /tmp/provisioner_password_file
+
+    - name: generate certificate for keycloak container
+      delegate_to: certificate_generator
+      raw: bash -c "step ca certificate keycloak ~/keycloak.key ~/keycloak.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=localhost"
+
+    - name: check keycloak cert
+      delegate_to: certificate_generator
+      raw: bash -c "step certificate inspect ~/keycloak.crt"
+      
 # root CA is initialisaed, now we use the certificate_generator container to generate the leaf cert and key for keycloak
 #  - hosts: certificate_generator
 #      community.docker.docker: step ca bootstrap --force --ca-url https://smallstep_ca:6783 --fingerprint $(cat ./fingerprint) 2>&1 >/dev/null

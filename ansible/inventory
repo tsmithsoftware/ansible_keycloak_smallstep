@@ -1,1 +1,1 @@
-random_container ansible_user=ubuntu
+python ansible_connection=docker ansible_python_interpreter=/usr/local/bin/python
