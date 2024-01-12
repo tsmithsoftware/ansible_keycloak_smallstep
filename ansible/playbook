@@ -1,4 +1,4 @@
-#---
+---
 - hosts: all
   tasks:
 
@@ -30,11 +30,30 @@
       raw: bash -c "step certificate fingerprint /home/step/certs/root_ca.crt"
       register: ca_fingerprint
 
-    - debug: msg="{{ ca_fingerprint.stdout }}"
+    - debug: msg="{{ ca_fingerprint.stdout[0:-1] }}"
+
+    - name: copy password file to ca_holder to start CA
+      delegate_to: ca_holder
+      raw: echo password > /tmp/password_file
+
+    - name: start step-ca container
+      delegate_to: ca_holder
+      raw: step-ca $(step path)/config/ca.json --password-file=/tmp/password_file </dev/null >/dev/null 2>&1 &
+
+    - name: Check all port numbers are accessible from the current host
+      wait_for:
+        host: ca_holder
+        port: "{{ item }}"
+        state: started         # Port should be open
+        delay: 0               # No wait before first check (sec)
+        timeout: 3             # Stop checking after timeout (sec)
+      ignore_errors: yes
+      with_items:
+        - 9000
 
     - name: bootstrap certgen container with step-ca
       delegate_to: certificate_generator
-      raw: step ca bootstrap --force --ca-url https://smallstep_ca:6783 --fingerprint {{ ca_fingerprint }} 2>&1 >/dev/null
+      raw: step ca bootstrap --force --ca-url https://ca_holder:9000 --fingerprint {{ ca_fingerprint.stdout[0:-1] }} 2>&1 >/dev/null
 
 # TODO: having issues installing the community.docker collection, will return to later
     - name: copy password file to certificate_generator for use in certgen
@@ -48,30 +67,29 @@
 
     - name: generate certificate for keycloak container
       delegate_to: certificate_generator
-      raw: bash -c "step ca certificate keycloak ~/keycloak.key ~/keycloak.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=localhost"
+      raw: step ca certificate keycloak ~/keycloak.crt ~/keycloak.key -ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=localhost --san keycloak
 
+# check - invalid cert 
     - name: check keycloak cert
       delegate_to: certificate_generator
-      raw: bash -c "step certificate inspect ~/keycloak.crt"
-      
-# root CA is initialisaed, now we use the certificate_generator container to generate the leaf cert and key for keycloak
-#  - hosts: certificate_generator
-#      community.docker.docker: step ca bootstrap --force --ca-url https://smallstep_ca:6783 --fingerprint $(cat ./fingerprint) 2>&1 >/dev/null
+      raw: step certificate inspect ~/keycloak.crt
 
-# - name: obtain cert for keycloak
-#     community.docker.docker: step ca certificate keycloak ./keycloak.key ./keycloak.crt  -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=keycloak --san=localhost
+    - name: generate certificate for image registry
+      delegate_to: certificate_generator
+      raw: step ca certificate registry ~/registry.crt ~/registry.key -ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san localhost --san registry
 
-# - name: check cert
-#     community.docker.docker: step certificate inspect ./keycloak.crt
+    - name: check registry cert
+      delegate_to: certificate_generator
+      raw: step certificate inspect ~/registry.crt
 
-# - name: obtain cert for image registry
-#     community.docker.docker: step ca certificate registry ./registry.key ./registry.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provision-password-file=/tmp/provisioner_password_file --san=registry --san=localhost
+#    - name: generate certificate for aspnet application
+#      delegate_to: certificate_generator
+#      raw: step ca certificate aspnet ~/aspnet.key ~/aspnet.crt ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san localhost --san aspnet
 
-# - name: check cert
-#      community.docker.docker: step certificate inspect /.registry.crt
+#    - name: check aspnet cert
+#      delegate_to: certificate_generator
+#      raw: step certificate inspect ~/aspnet.crt
 
-# - name: obtain cert for aspnet
-#        community.docker.docker: step ca certificate ./aspnet_core.key ./aspnet_core.crt -ca-url=https://smallstep_ca:6783 --password-file=/tmp/password_file --provision-password-file=/tmp/provisioner_password_file --san=aspnet
 
 # Now we copy the certificates into the keycloak container, import them into the keystore and start KC
 # - hosts: keycloak

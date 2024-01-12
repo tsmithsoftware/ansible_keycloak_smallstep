@@ -8,6 +8,9 @@ services:
     container_name: python
     image: python
     command: tail -f /dev/null
+    networks:
+      network:
+        ipv4_address: 10.5.0.7
 
   ansible:
     container_name: ansible
@@ -30,6 +33,7 @@ services:
     image: smallstep/step-ca
     ports:
       - "6783:6783"
+      - "9000:9000"
     stdin_open: true
     tty: true
     command: "tail -f /dev/null"
@@ -38,8 +42,7 @@ services:
         ipv4_address: 10.5.0.4
     environment:
       DOCKER_STEPCA_INIT_NAME: Smallstep
-      DOCKER_STEPCA_INIT_DNS_NAMES: smallstep_ca
-      DOCKER_STEPCA_INIT_REMOTE_MANAGEMENT: true
+      DOCKER_STEPCA_INIT_DNS_NAMES: ca_holder
       DOCKER_STEPCA_INIT_PASSWORD: password
       
 # 2 - these container holds the Keycloak instance https://www.keycloak.org/ that we use for auth+auth along with the associated database
