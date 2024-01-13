@@ -11,10 +11,12 @@ From the root directory:
 
 `docker-compose up`
 
-Once the containers are all running:
+Once the containers are all running, and the updates have been applied to the Keycloak database, run:
 
-`ansible-playbook -i ./ansible/inventory ./ansible/playbook -v -e 'ansible_python_interpreter=/usr/bin/python3'`
+`ansible-playbook -i ./ansible/inventory ./ansible/playbook -v`
 
 The playbook initialises the containers with the correct SSL certificates. 
 The playbook is not idempotent - once the playbook is run once, the certificates cannot be re-generated using the same containers/playbook.
 The containers need to be torn down and destroyed using `docker-compose down`, then re-scaffolded using `docker-compose up` before the playbook can be re-run.
+
+The Keycloak instance uses a custom Dockerfile in order to install Python, which is required for it to be managed as an Ansible inventory node.

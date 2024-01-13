@@ -6,21 +6,31 @@
 # so we add them here
 
     - name: add smallstep CA container to inventory
-      add_host: 
+      add_host:
         name: ca_holder
         ansible_connection: docker
+        ansible_python_interpreter: /usr/bin/python3
       changed_when: false
 
     - name: add keycloak container to inventory
       add_host:
         name: keycloak
         ansible_connection: docker
+        ansible_python_interpreter: /usr/bin/python3.9
+      changed_when: false
+
+    - name: add aspnet_app container to inventory
+      add_host:
+        name: aspnet_app
+        ansible_connection: docker
+        ansible_python_interpreter: /usr/bin/python3
       changed_when: false
 
     - name: add certificate_generator container to inventory, as KC image is locked down (cannot use step ca bootstrap)
       add_host:
         name: certificate_generator
         ansible_connection: docker
+        ansible_python_interpreter: /usr/bin/python3.9
       changed_when: false
 
 # CA container is initialised through docker-compose env vars
@@ -69,58 +79,77 @@
       delegate_to: certificate_generator
       raw: step ca certificate keycloak ~/keycloak.crt ~/keycloak.key -ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san=localhost --san keycloak
 
-# check - invalid cert 
     - name: check keycloak cert
       delegate_to: certificate_generator
       raw: step certificate inspect ~/keycloak.crt
 
-    - name: generate certificate for image registry
+    - name: generate certificate for aspnet_app application
       delegate_to: certificate_generator
-      raw: step ca certificate registry ~/registry.crt ~/registry.key -ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san localhost --san registry
+      raw: step ca certificate aspnet_app ~/aspnet_app.crt ~/aspnet_app.key -ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san localhost --san aspnet_app
 
-    - name: check registry cert
+    - name: check aspnet cert
       delegate_to: certificate_generator
-      raw: step certificate inspect ~/registry.crt
-
-#    - name: generate certificate for aspnet application
-#      delegate_to: certificate_generator
-#      raw: step ca certificate aspnet ~/aspnet.key ~/aspnet.crt ca-url=https://ca_holder:9000 --password-file=/tmp/password_file --provisioner-password-file=/tmp/provisioner_password_file --san localhost --san aspnet
-
-#    - name: check aspnet cert
-#      delegate_to: certificate_generator
-#      raw: step certificate inspect ~/aspnet.crt
-
+      raw: step certificate inspect ~/aspnet_app.crt
 
 # Now we copy the certificates into the keycloak container, import them into the keystore and start KC
-# - hosts: keycloak
 
-#   name: copy files
-#      community.docker.docker: cp ./keycloak.crt /home/keycloak_certs/keycloak.crt
-#      community.docker.docker: cp ./aspnet.crt /home/aspnet_certs/aspnet_core_copy.crt
-#      community.docker.docker: sh: <
-#KC
-#echo "import KC cert, use pregenerated keystore"
-#certAlias="keycloak$((1 + $RANDOM % 100))"
-#echo "kc cert alias: $certAlias"
-#echo "yes" | keytool -importcert -noprompt \
-# -alias $certAlias \
-# -file /home/keycloak_certs/keycloak.crt \
-# -keystore /keycloak_keystore/keystore.jks \
-# -storepass password \
-# -keypass password \
-# -keyalg RSA
+    - name: Copy the keycloak certificate out of the container
+      local_action:
+        module: shell
+        _raw_params: docker cp certificate_generator:/home/step/keycloak.crt /tmp/keycloak.crt
 
-#echo "import aspnet cert, use pregenerated keystore"
-#echo "generating random alias for certificate import"
-#certAlias="aspnet$((1 + $RANDOM % 100))"
-#echo "aspnet cert alias: $certAlias"
-#echo "yes" | keytool -importcert -noprompt \
-# -alias $certAlias \
-# -file /home/aspnet_certs/aspnet_core_copy.crt \
-# -keystore /keycloak_keystore/keystore.jks \
-# -storepass password \
-# -keypass hello \
-# -keyalg RSA
+    - name: Copy the keycloak key out of the container
+      local_action:
+        module: shell
+        _raw_params: docker cp certificate_generator:/home/step/keycloak.key /tmp/keycloak.key
+
+    - name: Copy the keycloak certificate into the keycloak container
+      local_action:
+        module: shell
+        _raw_params: docker cp /tmp/keycloak.crt keycloak:/home/keycloak.crt
+
+    - name: Copy the keycloak key into the keycloak container
+      local_action:
+        module: shell
+        _raw_params: docker cp /tmp/keycloak.key keycloak:/home/keycloak.key
+
+# Do the same thing here with any .NET applications
+
+# Configuration 
+    - name: Create keystore on KC container
+      delegate_to: keycloak
+      shell: "( echo user; echo OUnit; echo MyOrg; echo MyCity; echo MyState; echo GH; echo yes;) | keytool -genkey -noprompt -alias kcstore -keyalg RSA -keystore ~/keystore.jks -keysize 2048 -storepass password -keypass password"
+
+    - name: Configure KC container to use the generated certificate
+      delegate_to: keycloak
+      shell: "echo 'yes' | keytool -importcert -noprompt -alias keycloak$((1 + $RANDOM % 100)) -file /home/keycloak.crt -keystore ~/keystore.jks -storepass password -keypass password -keyalg RSA"
+
+    - name: Add aspnet certificate to KC container
+      local_action:
+        module: shell
+        _raw_params: echo "todo"
+   
+    - name: start KC
+      local_action:
+        module: shell
+        _raw_params: docker exec -d keycloak bash -c "/opt/keycloak/bin/kc.sh start --log-level=warn --hostname-url=https://keycloak.example --https-certificate-file=/home/keycloak.crt --https-certificate-key-file=/home/keycloak.key --https-protocols=TLSv1.3,TLSv1.2"
+
+#    - name: start KC
+ #     delegate_to: keycloak
+  #    raw: nohup /opt/keycloak/bin/kc.sh start --log-level=warn --hostname-url=https://keycloak.example --https-certificate-file=/home/keycloak.crt --https-certificate-key-file=/home/keycloak.key --https-protocols=TLSv1.3,TLSv1.2 </dev/null >/dev/null 2>&1 & sleep 1 
+
+   # - name: start KC
+   #   delegate_to: keycloak
+   #   shell: /bin/bash /tmp/exec.sh 2>&1 /dev/null
+    #- name: Stop KC container
+    #  local_action:
+    #    module: shell
+    #    _raw_params: docker stop keycloak
+
+    #- name: Start KC container
+    #  local_action:
+    #    module: shell
+    #    _raw_params: docker container start keycloak
 
 # name: start KC
 #   community.docker.docker: 
@@ -147,4 +176,5 @@
 #cd /app
 
 #echo "Running app..."
+#dotnet start
 #dotnet KeycloakAuth.dll

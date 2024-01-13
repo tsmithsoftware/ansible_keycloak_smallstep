@@ -6,23 +6,25 @@ services:
   # the script adds docker containers to the inventory, seems to need something to run against
   python:
     container_name: python
-    image: python
+   # image: python
+    build: ./python_image/.
     command: tail -f /dev/null
     networks:
       network:
-        ipv4_address: 10.5.0.7
-
-  ansible:
-    container_name: ansible
-    ports:
-      - "2222:22"
-    image: flaconi/ansible
-    volumes:
-    - ./ansible:/ansible
-    command: bash -c "ansible-galaxy collection install community.docker && tail -f /dev/null"
-    networks:
-      network:
         ipv4_address: 10.5.0.2
+
+# ansible is run on the host
+#  ansible:
+#    container_name: ansible
+#    ports:
+#      - "2222:22"
+#    image: flaconi/ansible
+#    volumes:
+#    - ./ansible:/ansible
+#    command: bash -c "ansible-galaxy collection install community.docker && tail -f /dev/null"
+#    networks:
+#      network:
+#        ipv4_address: 10.5.0.2
 
 # 1 - this solution requires certificates to be set up correctly. 
 # https://smallstep.com/docs/tutorials/docker-tls-certificate-authority/#manual-installation
@@ -39,7 +41,7 @@ services:
     command: "tail -f /dev/null"
     networks:
       network:
-        ipv4_address: 10.5.0.4
+        ipv4_address: 10.5.0.3
     environment:
       DOCKER_STEPCA_INIT_NAME: Smallstep
       DOCKER_STEPCA_INIT_DNS_NAMES: ca_holder
@@ -60,8 +62,7 @@ services:
       - "6000:5432"
     networks:
       network:
-        ipv4_address: 10.5.0.5
-        
+        ipv4_address: 10.5.0.4
         
   keycloak:
     container_name: keycloak
@@ -83,25 +84,36 @@ services:
       KEYCLOAK_PASSWORD: password
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: pass
-    command: start-dev
+    command: tail -f /dev/null
+    #command: start-dev
+    #command: start
     restart: 'unless-stopped'
     networks:
       network:
-        ipv4_address: 10.5.0.6
-        
+        ipv4_address: 10.5.0.5
     volumes:
       - ./keycloak_data:/opt/keycloak/data/import
-      
-# 3 - because the KC container is locked down, we need another container to interact with the Step API
+
+# 3 - This container is the asp.net application we want to use KC with
+  aspnet_app:
+    container_name: aspnet_app
+    image: mono
+    networks:
+      network:
+        ipv4_address: 10.5.0.6
+    command: tail -f /dev/null
+
+# 4 - because the KC container is locked down, we need another container to interact with the Step API
   certificate_generator:
     container_name: certificate_generator
     image: jitesoft/step-cli:latest
     networks:
       network:
-        ipv4_address: 10.5.0.3
+        ipv4_address: 10.5.0.7
     command: tail -f /dev/null
     depends_on:
       - smallstep_ca
+      - aspnet_app
 
 networks:
   network:
