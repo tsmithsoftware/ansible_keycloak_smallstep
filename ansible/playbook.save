@@ -93,23 +93,42 @@
 
 # Now we copy the certificates into the keycloak container, import them into the keystore and start KC
 
-    - name: Copy the keycloak certificate out of the container into the shared folder
+    - name: Copy the keycloak certificate out of the container
       local_action:
         module: shell
-        _raw_params: docker cp certificate_generator:/home/step/keycloak.crt ./kc_certs/keycloak.crt
+        _raw_params: docker cp certificate_generator:/home/step/keycloak.crt /tmp/keycloak.crt
 
     - name: Copy the keycloak key out of the container
       local_action:
         module: shell
-        _raw_params: docker cp certificate_generator:/home/step/keycloak.key ./kc_certs/keycloak.key
+        _raw_params: docker cp certificate_generator:/home/step/keycloak.key /tmp/keycloak.key
+
+    - name: Copy the keycloak certificate into the keycloak container
+      local_action:
+        module: shell
+        _raw_params: docker cp /tmp/keycloak.crt keycloak:/home/keycloak.crt
+
+    - name: Copy the keycloak key into the keycloak container
+      local_action:
+        module: shell
+        _raw_params: docker cp /tmp/keycloak.key keycloak:/home/keycloak.key
 
 # Do the same thing here with any .NET applications
 
-# Seems to be having trouble modifying the certificate after startup, so starting KC container separately
-    - name: Spin up KC container
+# Configuration 
+    - name: Create keystore on KC container
+      delegate_to: keycloak
+      shell: "( echo user; echo OUnit; echo MyOrg; echo MyCity; echo MyState; echo GH; echo yes;) | keytool -genkey -noprompt -alias kcstore -keyalg RSA -keystore ~/keystore.jks -keysize 2048 -storepass password -keypass password"
+
+    - name: Configure KC container to use the generated certificate
+      delegate_to: keycloak
+      shell: "echo 'yes' | keytool -importcert -noprompt -alias keycloak$((1 + $RANDOM % 100)) -file /home/keycloak.crt -keystore ~/keystore.jks -storepass password -keypass password -keyalg RSA"
+
+    - name: start KC
       local_action:
         module: shell
-        _raw_params: docker-compose -f docker-compose-kc.yaml up -d
+        _raw_params: docker exec -d keycloak bash -c "/opt/keycloak/bin/kc.sh start --log-level=warn --hostname-url=https://keycloak.example --https-certificate-file=/home/keycloak.crt --https-certificate-key-file=/home/keycloak.key --https-protocols=TLSv1.3,TLSv1.2"
+
 
 # - hosts: aspnet
 #   name: copy files

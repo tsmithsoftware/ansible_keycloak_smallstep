@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+## 2 - these container holds the Keycloak instance https://www.keycloak.org/ that we use for auth+auth along with the associated database
+  keycloak_db:
+    container_name: keycloak_db
+    image: 'postgres'
+    environment:
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: /usr/bin/pg_isready -d postgres -U postgres
+      interval: 5s
+      timeout: 10s
+      retries: 120
+    ports:
+      - "6000:5432"
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.4
+        
+  keycloak:
+    container_name: keycloak
+    image: keycloak/keycloak
+    #build: ./keycloak_image/.
+    ports: 
+      - "8080:8080"
+      - "443:8443" # by default, KC in prod mode listens on 8443
+    depends_on:
+      - keycloak_db
+    environment:
+      DB_VENDOR: "POSTGRES"
+      DB_ADDR: keycloak_db
+      DB_PORT: 6000
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER: user
+      KEYCLOAK_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: pass
+      KC_HTTPS_CERTIFICATE_FILE: /https_certs/keycloak.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /https_certs/keycloak.key
+    command: start-dev --log-level=WARN
+    volumes:
+      - ./kc_certs:/https_certs:ro
+      - ./keycloak_data:/opt/keycloak/data/import
+    restart: 'unless-stopped'
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.5
+# this section assumes the k8 setup is being run after a local minikube setup is run
+networks:
+  ansible_network:
+    external: true
