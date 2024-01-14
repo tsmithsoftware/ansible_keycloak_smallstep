@@ -9,7 +9,7 @@ This project requires `ansible`, `ansible-playbook`, `docker` and `docker-compos
 ## Installation and running
 From the root directory:
 
-`docker-compose up`
+`docker-compose up -d`
 
 Once the containers are all running, and the updates have been applied to the Keycloak database, run:
 
@@ -19,4 +19,9 @@ The playbook initialises the containers with the correct SSL certificates.
 The playbook is not idempotent - once the playbook is run once, the certificates cannot be re-generated using the same containers/playbook.
 The containers need to be torn down and destroyed using `docker-compose down`, then re-scaffolded using `docker-compose up` before the playbook can be re-run.
 
-The Keycloak instance uses a custom Dockerfile in order to install Python, which is required for it to be managed as an Ansible inventory node.
+Keycloak is brought up via a separate docker-compose file, to allow the container to be initialised with the created certificates. Keycloak takes some time to initialise, so the logs of the container should be checked to determine status.
+Once the KC instance is brought up and fully initialised, there should be a log in the container reading:
+` [org.keycloak.quarkus.runtime.KeycloakMain] (main) Running the server in development mode. DO NOT use this configuration in production.`
+
+At this point, the console should be accessible via https://localhost. In all likelihood an exception for the certificate will need to be added to the browser to access the console.
+This could probably be avoided by extracting the Smallstep root CA certificate out of the certificate_generator container and installing it on the host machine. However, this has not been included.

@@ -17,12 +17,11 @@ services:
     networks:
       ansible_network:
         ipv4_address: 10.5.0.4
-        
+
   keycloak:
     container_name: keycloak
     image: keycloak/keycloak
-    #build: ./keycloak_image/.
-    ports: 
+    ports:
       - "8080:8080"
       - "443:8443" # by default, KC in prod mode listens on 8443
     depends_on:
@@ -47,7 +46,7 @@ services:
     networks:
       ansible_network:
         ipv4_address: 10.5.0.5
-# this section assumes the k8 setup is being run after a local minikube setup is run
+# this section assumes the keycloak setup is run after then main docker-compose file
 networks:
   ansible_network:
     external: true
