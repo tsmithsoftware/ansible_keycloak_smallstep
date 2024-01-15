@@ -1,0 +1,7 @@
+/home/tim/development/ansible/aspnet_app/out/aspnet_app
+/home/tim/development/ansible/aspnet_app/out/appsettings.Development.json
+/home/tim/development/ansible/aspnet_app/out/appsettings.json
+/home/tim/development/ansible/aspnet_app/out/aspnet_app.dll
+/home/tim/development/ansible/aspnet_app/out/aspnet_app.deps.json
+/home/tim/development/ansible/aspnet_app/out/aspnet_app.runtimeconfig.json
+/home/tim/development/ansible/aspnet_app/out/aspnet_app.pdb

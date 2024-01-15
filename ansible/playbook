@@ -103,10 +103,39 @@
         module: shell
         _raw_params: docker cp certificate_generator:/home/step/keycloak.key ./kc_certs/keycloak.key
 
-# Do the same thing here with any .NET applications
+# Do the same thing here with any .NET applications, but convert into .pfx first
 
-# Seems to be having trouble modifying the certificate after startup, so starting KC container separately
-    - name: Spin up KC container
+    - name: Copy the dotnet certificate out of certificate_generator container and into local
+      local_action:
+        module: shell
+        _raw_params: docker cp certificate_generator:/home/step/aspnet_app.crt ./aspnet_certs/aspnet_app.crt
+
+    - name: Copy the dotnet certificate out of local and into python container
+      local_action:
+        module: shell
+        _raw_params: docker cp ./aspnet_certs/aspnet_app.crt python:/aspnet_app.crt
+
+    - name: Copy the dotnet key out of certificate_generator container and into python container
+      local_action:
+        module: shell
+        _raw_params: docker cp certificate_generator:/home/step/aspnet_app.key ./aspnet_certs/aspnet_app.key
+
+    - name: Copy the dotnet key out of local and into python container
+      local_action:
+        module: shell
+        _raw_params: docker cp ./aspnet_certs/aspnet_app.key python:/aspnet_app.key
+
+    - name: convert .NET certs into .pfx format
+      delegate_to: python
+      raw: openssl pkcs12 -export -out /aspnet_app.pfx -inkey /aspnet_app.key -in /aspnet_app.crt -passin pass:hello -passout pass:hello
+
+    - name: Copy the .net certificate out of the container into the shared folder
+      local_action:
+        module: shell
+        _raw_params: docker cp python:/aspnet_app.pfx ./aspnet_certs/aspnet_app.pfx
+      
+# Seems to be having trouble modifying the certificate after startup, so starting KC/ASP.NET container separately
+    - name: Spin up KC / ASP.NET container
       local_action:
         module: shell
         _raw_params: docker-compose -f docker-compose-kc.yaml up -d
