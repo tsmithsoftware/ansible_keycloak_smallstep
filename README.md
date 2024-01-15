@@ -11,7 +11,7 @@ From the root directory:
 
 `docker-compose up -d`
 
-Once the containers are all running, and the updates have been applied to the Keycloak database, run:
+Once the containers are all running, run:
 
 `ansible-playbook -i ./ansible/inventory ./ansible/playbook -v`
 

@@ -35,15 +35,6 @@ services:
       DOCKER_STEPCA_INIT_PASSWORD: password
       
 
-# 3 - This container is the asp.net application we want to use KC with
-  aspnet_app:
-    container_name: aspnet_app
-    image: mono
-    networks:
-      network:
-        ipv4_address: 10.5.0.6
-    command: tail -f /dev/null
-
 # 4 - because the KC container is locked down, we need another container to interact with the Step API
   certificate_generator:
     container_name: certificate_generator
@@ -54,7 +45,6 @@ services:
     command: tail -f /dev/null
     depends_on:
       - smallstep_ca
-      - aspnet_app
 
 networks:
   network:
