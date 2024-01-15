@@ -25,3 +25,5 @@ Once the KC instance is brought up and fully initialised, there should be a log 
 
 At this point, the console should be accessible via https://localhost. In all likelihood an exception for the certificate will need to be added to the browser to access the console.
 This could probably be avoided by extracting the Smallstep root CA certificate out of the certificate_generator container and installing it on the host machine. However, this has not been included.
+
+The dotnet app should also be accessible via https://localhost:5001, using the certificate configured via Ansible and issued via the local Smallstep CA.
