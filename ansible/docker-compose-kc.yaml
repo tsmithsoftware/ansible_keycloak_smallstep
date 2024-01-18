@@ -38,7 +38,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: pass
       KC_HTTPS_CERTIFICATE_FILE: /https_certs/keycloak.crt
       KC_HTTPS_CERTIFICATE_KEY_FILE: /https_certs/keycloak.key
-    command: start-dev --log-level=WARN
+    command: start-dev --log-level=WARN --import-realm # this imports realms from /opt/keycloak/data/import
     volumes:
       - ./kc_certs:/https_certs:ro
       - ./keycloak_data:/opt/keycloak/data/import
