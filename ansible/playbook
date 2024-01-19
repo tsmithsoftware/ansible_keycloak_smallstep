@@ -133,33 +133,9 @@
       local_action:
         module: shell
         _raw_params: docker cp python:/aspnet_app.pfx ./aspnet_certs/aspnet_app.pfx
-      
+
 # Seems to be having trouble modifying the certificate after startup, so starting KC/ASP.NET container separately
     - name: Spin up KC / ASP.NET container
       local_action:
         module: shell
         _raw_params: docker-compose -f docker-compose-kc.yaml up -d
-
-# - hosts: aspnet
-#   name: copy files
-#      community.docker.docker: cp ./keycloak.crt /home/keycloak_certs/keycloak.crt
-#      community.docker.docker: cp ./aspnet.crt /home/aspnet_certs/aspnet_core_copy.crt
-#      community.docker.docker: sh: <
-
-#echo "convert into pfx"
-#openssl pkcs12 -export -out aspnet_core.pfx -inkey ./aspnet_core.key -in ./aspnet_core.crt -passin pass:hello -passout pass:hello
-
-#echo "move into locations"
-
-#mv aspnet_core.pfx /certs/aspnet_core.pfx
-
-#echo "installing KC certificates..."
-#cp /home/keycloak-certs/keycloak.crt /tmp/keycloak.crt
-
-#cat /tmp/keycloak.crt >> /etc/ssl/certs/ca-certificates.crt
-# run app
-#cd /app
-
-#echo "Running app..."
-#dotnet start
-#dotnet KeycloakAuth.dll
