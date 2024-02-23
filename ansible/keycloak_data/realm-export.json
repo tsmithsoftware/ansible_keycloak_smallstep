@@ -624,7 +624,7 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "**********",
       "redirectUris": [
-        "aspnet_app/redirect"
+        "https://localhost:5001/login-callback"
       ],
       "webOrigins": [
         "*"

@@ -11,6 +11,8 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 RUN apk add openjdk11
 # required for healthcheck
 RUN apk add curl
+# required for ansible
+RUN apk add --no-cache python3 py3-pip
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0-alpine AS build
 # install step to allow SSL cert registration

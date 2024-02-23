@@ -27,3 +27,14 @@ At this point, the console should be accessible via https://localhost. In all li
 This could probably be avoided by extracting the Smallstep root CA certificate out of the certificate_generator container and installing it on the host machine. However, this has not been included.
 
 The dotnet app should also be accessible via https://localhost:5001, using the certificate configured via Ansible and issued via the local Smallstep CA.
+
+Because the login flow is executed in a browser outside of the docker-compose network, the hosts file of the machine on which the project is run needs to be updated. An example snippet is shown below:
+
+```
+# development
+127.0.0.1 whoami.example
+127.0.0.1 dotnet.example
+127.0.0.1 pgadmin.example
+127.0.0.1 keycloak.example
+127.0.0.1 keycloak
+```

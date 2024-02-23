@@ -23,7 +23,7 @@ services:
     image: keycloak/keycloak
     ports:
       - "8080:8080"
-      - "444:8443" # by default, KC in prod mode listens on 8443
+      - "8443:8443" # by default, KC in prod mode listens on 8443
     depends_on:
       - keycloak_db
     environment:

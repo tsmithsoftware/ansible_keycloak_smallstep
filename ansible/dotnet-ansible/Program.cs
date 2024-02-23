@@ -30,10 +30,10 @@ services.AddAuthentication(options =>
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     //Keycloak server
     //options.Authority = Configuration.GetSection("Keycloak")["ServerRealm"];
-    options.Authority = "https://keycloak:8443";
+    options.Authority = "https://keycloak:8443/realms/dev/";
     //Keycloak client ID
     //options.ClientId = Configuration.GetSection("Keycloak")["ClientId"];
-    options.ClientId = "aspnet_app";
+    options.ClientId = "aspnet_client";
     //Keycloak client secret
     //options.ClientSecret = Configuration.GetSection("Keycloak")["ClientSecret"];
     options.ClientSecret = "gkthF7q6q92PkUC6QsbTzCKGTONgBi2H";
@@ -64,7 +64,7 @@ services.AddAuthentication(options =>
     //Configuration.Bind("<Json Config Filter>", options);
     options.Events.OnRedirectToIdentityProvider = async context =>
     {
-        context.ProtocolMessage.RedirectUri = "https://localhost:5001/home";
+        context.ProtocolMessage.RedirectUri = "https://localhost:5001/login-callback";
         await Task.FromResult(0);
     };
 
@@ -90,5 +90,11 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Add route for Keycloak authentication callback
+app.MapControllerRoute(
+    name: "login-callback",
+    pattern: "login-callback",
+    defaults: new { controller = "Home", action = "LoginCallback" });
 
 app.Run();

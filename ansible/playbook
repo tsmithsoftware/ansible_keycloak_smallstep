@@ -139,3 +139,35 @@
       local_action:
         module: shell
         _raw_params: docker-compose -f docker-compose-kc.yaml up -d
+
+# but bootstrap
+
+    - name: install step-cli on asp.net container
+      delegate_to: aspnet_app
+      apk:
+        name: step-cli
+        update_cache: yes
+
+    - name: Bootstrap ASP.NET container into Smallstep
+      delegate_to: aspnet_app
+      raw: step ca bootstrap --force --ca-url https://ca_holder:9000 --fingerprint {{ ca_fingerprint.stdout[0:-1] }} 2>&1 >/dev/null
+
+    - name: Copy root certificate into ca-cert folder
+      local_action:
+        module: shell
+        _raw_params: docker exec aspnet_app cp /root/.step/certs/root_ca.crt /usr/local/share/ca-certificates
+
+    - name: Copy root certificate into /etc/ssl/certs folder
+      local_action:
+        module: shell
+        _raw_params: docker exec aspnet_app cp /root/.step/certs/root_ca.crt /etc/ssl/certs
+
+    - name: Update certs
+      local_action:
+        module: shell
+        _raw_params: docker exec aspnet_app update-ca-certificates
+
+    - name: Restart dotnet container
+      local_action:
+        module: shell
+        _raw_params: docker restart aspnet_app
